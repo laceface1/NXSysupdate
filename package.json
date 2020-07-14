@@ -1,0 +1,34 @@
+{
+  "name": "nxsysupdate",
+  "version": "1.0.0",
+  "description": "Posts to a Discord webhook when a new sysupdate has been detected",
+  "author": "Migush",
+  "license": "MIT",
+  "scripts": {
+    "start": "node ./dist/index.js",
+    "dev": "NODE_ENV=development nodemon",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "python-shell": "^2.0.1",
+    "ts-node": "^8.10.2",
+    "typescript": "^3.9.6",
+    "webhook-discord": "^3.7.5"
+  },
+  "devDependencies": {
+    "@types/node": "^14.0.23"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "**/*.test.ts",
+      "**/*.spec.ts",
+      ".git",
+      "node_modules"
+    ],
+    "watch": [
+      "src"
+    ],
+    "exec": "npm start",
+    "ext": "ts"
+  }
+}
