@@ -5,18 +5,27 @@
   "author": "Migush",
   "license": "MIT",
   "scripts": {
-    "start": "node ./dist/index.js",
-    "dev": "NODE_ENV=development nodemon",
+    "start": "node ./dist/src/index.js",
+    "dev": "cross-env NODE_ENV=development nodemon",
     "build": "tsc"
   },
   "dependencies": {
+    "@types/tough-cookie": "^4.0.0",
+    "axios": "^0.19.2",
+    "axios-cookiejar-support": "^1.0.0",
+    "cheerio": "^1.0.0-rc.3",
+    "cookiejar": "^2.1.2",
+    "discord-webhook-node": "^1.1.0",
+    "edit-json-file": "^1.4.0",
     "python-shell": "^2.0.1",
+    "request": "^2.88.2",
+    "tough-cookie": "^4.0.0",
     "ts-node": "^8.10.2",
-    "typescript": "^3.9.6",
-    "webhook-discord": "^3.7.5"
+    "typescript": "^3.9.6"
   },
   "devDependencies": {
-    "@types/node": "^14.0.23"
+    "@types/node": "^14.0.23",
+    "cross-env": "^7.0.2"
   },
   "nodemonConfig": {
     "ignore": [
@@ -28,7 +37,7 @@
     "watch": [
       "src"
     ],
-    "exec": "npm start",
+    "exec": "yarn run build && yarn run start",
     "ext": "ts"
   }
 }
