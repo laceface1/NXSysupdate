@@ -1,13 +1,18 @@
+import { readFileSync, createWriteStream, renameSync } from 'fs'
+import { execFileSync } from 'child_process'
+import { hactoolPath, prodKeysPath } from '../config'
+
 import axios from 'axios'
 import https from 'https'
+
+const tmp = require('tmp')
 const axiosCookieJarSupport = require('axios-cookiejar-support').default
 const tough = require('tough-cookie')
 axiosCookieJarSupport(axios)
 const cookieJar = new tough.CookieJar()
 
-import { readFileSync } from 'fs'
-
 export default class SysUpdateHandler {
+	CDN_URL: string
 	SUN_URL: string
 	SUN_NAME: string
 	SERVER_ENV: string
@@ -19,6 +24,7 @@ export default class SysUpdateHandler {
 	session: any
 
 	constructor() {
+		this.CDN_URL = 'https://atumn.hac.lp1.d4c.nintendo.net'
 		this.SUN_URL = 'https://sun.hac.lp1.d4c.nintendo.net/v1'
 		this.SUN_NAME = 'sun'
 		this.SERVER_ENV = 'lp1'
@@ -48,7 +54,7 @@ export default class SysUpdateHandler {
 			rejectUnauthorized: false,
 		})
 
-		this.session = axios.create({ httpsAgent: agent })
+		this.session = axios.create({ httpsAgent: agent, jar: cookieJar } as any)
 		this.session.defaults.headers.common[
 			'User-Agent'
 		] = `NintendoSDK Firmware/${this.FIRMWARE_VERSION} (platform:${this.PLATFORM}; did:${this.DEVICE_ID}; eid:${this.SERVER_ENV})`
@@ -72,12 +78,48 @@ export default class SysUpdateHandler {
 
 	async getLatestUpdate() {
 		try {
-			const result = await this.session.get(`${this.SUN_URL}/system_update_meta?device_id=${this.DEVICE_ID}`, {
-				jar: cookieJar,
-			})
-			return result.data.system_update_metas[0].title_version
+			const response = await this.session.get(`${this.SUN_URL}/system_update_meta?device_id=${this.DEVICE_ID}`)
+			return response.data.system_update_metas[0]
 		} catch (e) {
 			console.error(e, '--------ERROR--------')
 		}
+	}
+
+	async streamFile(url, path) {
+		console.log(url)
+		const response = await this.session.get(url, {
+			responseType: 'stream',
+		})
+
+		await response.data.pipe(createWriteStream(path))
+		const contentID = response.headers['x-nintendo-content-id']
+
+		return contentID
+	}
+
+	async streamFromCDN(titleID: string, intVersion: number, path: string, magic: string = 'c') {
+		return this.streamFile(`${this.CDN_URL}/t/${magic}/${titleID}/${intVersion}?device_id=${this.DEVICE_ID}`, path)
+	}
+
+	async downloadLatest(version, saveDir: string) {
+		const tmpobj = tmp.dirSync()
+		const tmpDir = 'C:/Users/ihave/AppData/Local/Temp/tmp-19624-wDD7FpYM6nCt'
+		// const tmpDir = tmpobj.name
+
+		const contentID = await this.streamFromCDN(version.title_id, version.title_version, `${tmpDir}/meta.nca`, 's')
+		renameSync(`${tmpDir}/meta.nca`, `${tmpDir}/${contentID}.nca`)
+
+		setTimeout(() => {
+			const stdout = execFileSync(hactoolPath, [
+				'-k',
+				prodKeysPath,
+				`${tmpDir}/${contentID}.nca`,
+				`--section0dir=${tmpDir}/meta_nca_exefs`,
+				'--disablekeywarns',
+			])
+			console.log(stdout)
+		}, 5000)
+
+		// tmpobj.removeCallback()
 	}
 }

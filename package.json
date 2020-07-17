@@ -19,8 +19,10 @@
     "edit-json-file": "^1.4.0",
     "python-shell": "^2.0.1",
     "request": "^2.88.2",
+    "tmp": "^0.2.1",
     "tough-cookie": "^4.0.0",
     "ts-node": "^8.10.2",
+    "turndown": "^6.0.0",
     "typescript": "^3.9.6"
   },
   "devDependencies": {

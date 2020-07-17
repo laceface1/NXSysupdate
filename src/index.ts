@@ -1,11 +1,15 @@
 import SysUpdateHandler from './SysUpdateHandler'
+const UpdateHandler = new SysUpdateHandler()
+UpdateHandler.init()
 
 import axios from 'axios'
 import cheerio from 'cheerio'
+import TurndownService from 'turndown'
+const turndownService = new TurndownService({ bulletListMarker: '-' })
 
 const { Webhook } = require('discord-webhook-node')
 import { webhookUrls } from '../config'
-import { changelogEmbeds, majorUpdateEmbed, minorUpdateEmbed, patchUpdateEmbed } from './webhookMessages'
+import { majorUpdateEmbed, minorUpdateEmbed, patchUpdateEmbed, changelogEmbed } from './webhookMessages'
 const Hooks = webhookUrls.map((url) => new Webhook(url))
 
 import editJsonFile from 'edit-json-file'
@@ -61,72 +65,130 @@ const sendEmbeds = (embeds) => {
 	})
 }
 
-const main = async () => {
-	const UpdateHandler = new SysUpdateHandler()
-	UpdateHandler.init()
-
-	// setInterval(async () => {
+const getUpdate = async () => {
 	try {
 		// data.unset('last_SystemUpdate_version')
 		const oldVersionInt = data.get('last_SystemUpdate_version') || 0
-		// const newVersionInt = await UpdateHandler.getLatestUpdate()
-		const newVersionInt = fakeVersions[21]
+		const newv = await UpdateHandler.getLatestUpdate()
+		const newVersionInt = newv?.title_version
+		// const newVersionInt = fakeVersions[22]
 
-		if (newVersionInt > oldVersionInt) {
-			// New update detected
-
-			const oldVersion = UpdateHandler.prettyVersion(oldVersionInt)
-			const newVersion = UpdateHandler.prettyVersion(newVersionInt)
-
-			let changelog = null
-			try {
-				// const res = await axios.get(
-				// 	'https://en-americas-support.nintendo.com/app/answers/detail/a_id/22525/kw/nintendo%20switch%20system%20update'
-				// )
-				const res = await axios.get('https://bonteknaagkever.ga/sysupdatetestpage.html')
-
-				const $ = cheerio.load(res.data)
-				const div = $('.update-versions')
-
-				const title = $('h3', div)
-
-				if (title.text().includes(newVersion.pretty)) {
-					const all = $(div).children(':not(h3)')
-
-					changelog = all.text()
-				}
-			} catch (e) {
-				console.error(e)
-				console.error('Unable to fetch web page with update details')
-			}
-
-			if (newVersion.major > oldVersion.major) {
-				// Major update
-				console.log('New major sysupdate detected:', newVersion.pretty, newVersion.revision)
-
-				await sendEmbeds([minorUpdateEmbed(newVersion.pretty, newVersion.revision, !!changelog)])
-			} else if (newVersion.minor > oldVersion.minor) {
-				// Minor update
-				console.log('New minor sysupdate detected:', newVersion.pretty, newVersion.revision)
-
-				await sendEmbeds([minorUpdateEmbed(newVersion.pretty, newVersion.revision, !!changelog)])
-			} else if (newVersion.patch > oldVersion.patch) {
-				// Patch update
-				console.log('New patch sysupdate detected:', newVersion.pretty, newVersion.revision)
-
-				await sendEmbeds([minorUpdateEmbed(newVersion.pretty, newVersion.revision, !!changelog)])
-			}
-			sendEmbeds(changelogEmbeds(changelog))
-
-			data.set('last_SystemUpdate_version', newVersionInt)
-		}
+		const oldVersion = UpdateHandler.prettyVersion(oldVersionInt)
+		const newVersion = UpdateHandler.prettyVersion(newVersionInt)
 
 		data.set('last_checked', new Date())
-		// data.save()
+
+		if (newVersionInt > oldVersionInt) {
+			console.log('Seems to be an update')
+
+			// Download update now
+			// UpdateHandler.downloadLatest(newv, `/home/ubuntu/www/html/firmwares`)
+
+			data.set('last_SystemUpdate_version', newVersionInt)
+			data.save()
+			return { newVersion, oldVersion }
+		} else return { newVersion: null, oldVersion }
 	} catch (e) {
 		console.error(e)
 	}
-	// }, 600000) //10 min
 }
 
-main()
+const getChangelog = async (versionString) => {
+	let changelog = null
+	try {
+		const res = await axios.get(
+			'https://en-americas-support.nintendo.com/app/answers/detail/a_id/22525/kw/nintendo%20switch%20system%20update'
+		)
+		// const res = await axios.get('https://bonteknaagkever.ga/sysupdatetestpage.html')
+
+		const $ = cheerio.load(res.data)
+		const div = $('.update-versions')
+
+		const title = $('h3', div)
+
+		if (title.text().includes(versionString)) {
+			var changes = $(div).children(':not(h3)')
+			changes.each((i, elem) => {
+				var elem = $(elem)
+				console.log(turndownService.turndown(elem.html()))
+				const parsed = turndownService.turndown(elem.html()) + '\n'
+				if (!changelog) {
+					changelog = parsed
+				} else {
+					changelog += parsed
+				}
+			})
+
+			return changelog.replace(/\n\s{4}/gm, '\n\u2800   ')
+		} else return null
+	} catch (e) {
+		console.error(e)
+		console.error('Unable to fetch web page with update details')
+	}
+}
+
+let updateMonitor, changelogMonitor
+
+const checkUpdate = async () => {
+	const { newVersion, oldVersion } = await getUpdate()
+
+	if (newVersion) {
+		if (newVersion.major > oldVersion.major) {
+			// Major update
+			console.log('New major sysupdate detected:', newVersion.pretty, newVersion.revision)
+
+			await sendEmbeds([majorUpdateEmbed(newVersion.pretty, newVersion.revision)])
+		} else if (newVersion.minor > oldVersion.minor) {
+			// Minor update
+			console.log('New minor sysupdate detected:', newVersion.pretty, newVersion.revision)
+
+			await sendEmbeds([minorUpdateEmbed(newVersion.pretty, newVersion.revision)])
+		} else if (newVersion.patch > oldVersion.patch) {
+			// Patch update
+			console.log('New patch sysupdate detected:', newVersion.pretty, newVersion.revision)
+
+			await sendEmbeds([patchUpdateEmbed(newVersion.pretty, newVersion.revision)])
+		}
+
+		data.set('last_changelog_sent', false)
+		data.save()
+		startChangelogMonitor(newVersion.pretty)
+	}
+}
+
+const checkChangelog = async (versionString) => {
+	try {
+		const newChangelog = await getChangelog(versionString)
+		if (newChangelog) {
+			await sendEmbeds([changelogEmbed(versionString, newChangelog)])
+
+			data.set('last_changelog_sent', true)
+			data.save()
+
+			clearInterval(changelogMonitor)
+		}
+	} catch (e) {
+		console.error(e)
+	}
+}
+
+const startUpdateMonitor = () => {
+	checkUpdate()
+	updateMonitor = setInterval(async () => {
+		checkUpdate()
+	}, 600000) // 10 min
+}
+
+const startChangelogMonitor = (versionString) => {
+	checkChangelog(versionString)
+	changelogMonitor = setInterval(() => {
+		checkChangelog(versionString)
+	}, 5000) // 5 min
+}
+
+startUpdateMonitor()
+if (!data.get('last_changelog_sent')) {
+	const newVersion = UpdateHandler.prettyVersion(data.get('last_SystemUpdate_version'))
+
+	startChangelogMonitor(newVersion.pretty)
+}
