@@ -106,3 +106,8 @@ dist
 # TernJS port file
 .tern-port
 config.ts
+
+
+## keys file
+prod.keys
+keys.txt
