@@ -114,8 +114,9 @@ prod.keys
 keys.txt
 
 # manual packages
-config.json
+config.js
 data.json
+downloads/
 
 yui
 hactool
