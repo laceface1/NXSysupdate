@@ -14,7 +14,7 @@
     "adm-zip": "^0.5.5",
     "axios": "^0.21.1",
     "axios-cookiejar-support": "^1.0.0",
-    "cheerio": "^1.0.0-rc.3",
+    "cheerio": "^1.0.0-rc.10",
     "cookiejar": "^2.1.2",
     "discord.js": "^12.5.3",
     "edit-json-file": "^1.4.0",
