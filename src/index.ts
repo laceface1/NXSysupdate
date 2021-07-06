@@ -28,7 +28,7 @@ const sendEmbeds = (embeds) => {
             }
         }
 
-        resolve();
+        resolve(null);
     });
 };
 
