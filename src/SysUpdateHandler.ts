@@ -34,7 +34,7 @@ export default class SysUpdateHandler {
 
             ls.stderr.on("data", (data) => {
                 SysUpdateHandler._killProcess(ls);
-                reject(data.toString());
+                reject("[yui] " + data.toString());
             });
 
             ls.stdout.on("data", (data) => {
@@ -92,7 +92,7 @@ export default class SysUpdateHandler {
             ls.stderr.on("data", (data) => {
                 SysUpdateHandler._killProcess(ls);
                 error = true;
-                reject(data.toString());
+                reject("[yui] " + data.toString());
             });
 
             ls.stdout.on("data", (data) => {
