@@ -111,6 +111,7 @@ config.ts
 
 # keys file
 prod.keys
+keys.ini
 keys.txt
 
 # manual packages

@@ -1,79 +1,97 @@
-const { MessageBuilder } = require('discord-webhook-node')
-const defaultEmbed = (version?: string, revision?: number | string, dlUrl?: string) => {
-	const base = new MessageBuilder()
-		// .setAuthor('FW Updates Monitor')
-		.setTitle(`Firmware version ${version}`)
-		.setDescription(`Revision ${revision}`)
-		.addField('Official Changelog', '*Coming later*')
-		.setTimestamp()
+import Discord from "discord.js";
 
-	if (dlUrl) base.setURL(dlUrl)
-
-	return base
-}
+const defaultEmbed = () => {
+    return new Discord.MessageEmbed()
+        .setTimestamp();
+};
 
 // Totally not stolen from https://github.com/discordjs/discord.js/blob/44ac5fe6dfbab21bb4c16ef580d1101167fd15fd/src/util/Util.js#L65-L80
-export const splitMessage = (text, { maxLength = 1000, char = '\n', prepend = '', append = '' } = {}) => {
-	if (!text) return
-	if (text.length <= maxLength) return [text]
-	const splitText = text.split(char)
-	if (splitText.some((chunk) => chunk.length > maxLength)) throw new RangeError('SPLIT_MAX_LEN')
-	const messages = []
-	let msg = ''
-	for (const chunk of splitText) {
-		if (msg && (msg + char + chunk + append).length > maxLength) {
-			messages.push(msg + append)
-			msg = prepend
-		}
-		msg += (msg && msg !== prepend ? char : '') + chunk
-	}
-	return messages.concat(msg).filter((m) => m)
-}
+const _splitMessage = (text, {maxLength = 1000, char = "\n", prepend = "", append = ""} = {}) => {
+    if (!text) return;
+    if (text.length <= maxLength) return [text];
+    const splitText = text.split(char);
+    if (splitText.some((chunk) => chunk.length > maxLength)) throw new RangeError("SPLIT_MAX_LEN");
+    const messages = [];
+    let msg = "";
+    for (const chunk of splitText) {
+        if (msg && (msg + char + chunk + append).length > maxLength) {
+            messages.push(msg + append);
+            msg = prepend;
+        }
+        msg += (msg && msg !== prepend ? char : "") + chunk;
+    }
+    return messages.concat(msg).filter((m) => m);
+};
 
-const addChangelogFields = (embed, text) => {
-	const messages = splitMessage(text)
+const _addChangelogFields = (embed, text) => {
+    const messages = _splitMessage(text);
 
-	if (messages) {
-		for (let i = 0; i < messages.length; i++) {
-			if (i === 0) {
-				// First block
-				embed.addField('Official Changelog:', messages[i])
-			} else {
-				embed.addField('\u2800', messages[i])
-			}
-		}
-	} else {
-		embed.addField('Official Changelog:', 'N/A')
-	}
-}
+    if (messages) {
+        for (let i = 0; i < messages.length; i++) {
+            embed.addField("\u2800", messages[i]);
+        }
+    }
+};
 
-export const majorUpdateEmbed = (...args) => {
-	const baseEmbed = defaultEmbed(...args)
-	const embed = baseEmbed.setText('**----- New major update detected! -----**').setColor(12910592)
+export const updateEmbed = ({
+                                version,
+                                versionString,
+                                buildNumber,
+                                downloadUrl,
+                                fileMd5,
+                                downloadUsername,
+                                downloadPassword,
+                            }) => {
+    return defaultEmbed()
+        .setTitle(`New CDN Firmware: ${versionString}`)
+        .addField("Build Number", buildNumber)
+        .addField("Version Number", version)
+        .addField("Download", downloadUrl)
+        .addField("MD5", fileMd5)
+        .addField("Credentials", `User: \`${downloadUsername}\`\nPass: \`${downloadPassword}\``)
+        .setColor("GREEN")
+        .setFooter("Powered by yui");
+};
 
-	return embed
-}
+export const failedDownloadUpdateEmbed = ({version, versionString, buildNumber}) => {
+    return defaultEmbed()
+        .setTitle(`New CDN Firmware: ${versionString}`)
+        .addField("Build Number", buildNumber)
+        .addField("Version Number", version)
+        .addField("Download", "*Could not download firmware*")
+        .setColor("GREEN")
+        .setFooter("Powered by yui");
+};
 
-export const minorUpdateEmbed = (...args) => {
-	const baseEmbed = defaultEmbed(...args)
-	const embed = baseEmbed.setText('**----- New minor update detected! -----**').setColor(16753920)
+export const pendingUpdateEmbed = ({versionString}) => {
+    return defaultEmbed()
+        .setTitle(`New CDN Firmware: ${versionString}`)
+        .setDescription("*Check back again later for more details*")
+        .setColor("GREEN")
+        .setFooter("Powered by yui");
+};
 
-	return embed
-}
+export const updateRemovedEmbed = ({version, versionString, buildNumber}) => {
+    return defaultEmbed()
+        .setTitle(`Firmware Removed: ${versionString}`)
+        .addField("Build Number", buildNumber)
+        .addField("Version Number", version)
+        .setColor("REG")
+        .setFooter("Powered by yui");
+};
 
-export const patchUpdateEmbed = (...args) => {
-	const baseEmbed = defaultEmbed(...args)
-	const embed = baseEmbed.setText('**----- New patch detected!** -----').setColor(50432)
+export const changelogEmbed = ({versionString, changelog}) => {
+    const embed = defaultEmbed()
+        .setTitle(`New Firmware Changelog: ${versionString}`)
+        .setColor("DARK_GREY");
+    _addChangelogFields(embed, changelog);
 
-	return embed
-}
+    return embed;
+};
 
-export const changelogEmbed = (versionString, changelog) => {
-	const embed = new MessageBuilder()
-		// .setAuthor('FW Updates Monitor')
-		.setTitle(`FW ${versionString}`)
-
-	addChangelogFields(embed, changelog)
-
-	return embed
-}
+export const pendingChangelogEmbed = ({versionString}) => {
+    return defaultEmbed()
+        .setTitle(`Firmware Changelog: ${versionString}`)
+        .setDescription("*Check back again later*")
+        .setColor("DARK_GREY");
+};

@@ -1,125 +1,123 @@
-import { readFileSync, createWriteStream, renameSync } from 'fs'
-import { execFileSync } from 'child_process'
-import { hactoolPath, prodKeysPath } from '../config'
+import path from "path";
+import {spawn} from "child_process";
+import cheerio from "cheerio";
+import axios from "axios";
+import TurndownService from "turndown";
+import tmp from "tmp";
+import md5File from "md5-file";
+import AdmZip from "adm-zip";
 
-import axios from 'axios'
-import https from 'https'
-
-const tmp = require('tmp')
-const axiosCookieJarSupport = require('axios-cookiejar-support').default
-const tough = require('tough-cookie')
-axiosCookieJarSupport(axios)
-const cookieJar = new tough.CookieJar()
+const turndownService = new TurndownService({bulletListMarker: "-"});
 
 export default class SysUpdateHandler {
-	CDN_URL: string
-	SUN_URL: string
-	SUN_NAME: string
-	SERVER_ENV: string
-	DEVICE_ID: string
-	FIRMWARE_VERSION: string
-	PLATFORM: string
+    yuiPath;
+    yuiBaseArgs: string[];
 
-	cert: string
-	session: any
+    constructor({certPath, keysetPath, yuiPath}) {
+        this.yuiPath = yuiPath;
+        this.yuiBaseArgs = [
+            "-q",
+            "--cert",
+            certPath,
+            "--keyset",
+            keysetPath,
+        ];
+    }
 
-	constructor() {
-		this.CDN_URL = 'https://atumn.hac.lp1.d4c.nintendo.net'
-		this.SUN_URL = 'https://sun.hac.lp1.d4c.nintendo.net/v1'
-		this.SUN_NAME = 'sun'
-		this.SERVER_ENV = 'lp1'
-		this.DEVICE_ID = 'DEVUNIT000072992'
-		this.FIRMWARE_VERSION = '5.1.0-3'
-		this.PLATFORM = 'NX'
-	}
+    private static _killProcess(process) {
+        if (!process.killed) process.kill();
+    }
 
-	init(
-		cert_loc: string = `${__dirname}/../../nx_tls_client_cert.pem`,
-		device_id: string = null,
-		server: string = null,
-		env: string = null,
-		fw_ver: string = null,
-		platform: string = null
-	) {
-		this.cert = cert_loc
-		this.initSession()
-	}
+    fetchLatestInfo() {
+        return new Promise<{ version: string, versionString: string, buildNumber: string }>((resolve, reject) => {
+            const ls = spawn(this.yuiPath, [...this.yuiBaseArgs, "--info"]);
 
-	initSession() {
-		const cert = readFileSync(this.cert)
+            ls.stderr.on("data", (data) => {
+                SysUpdateHandler._killProcess(ls);
+                reject(data.toString());
+            });
 
-		var agent = new https.Agent({
-			cert: cert,
-			key: cert,
-			rejectUnauthorized: false,
-		})
+            ls.stdout.on("data", (data) => {
+                const line = data.toString().trim();
+                console.log("[yui]", line);
 
-		this.session = axios.create({ httpsAgent: agent, jar: cookieJar } as any)
-		this.session.defaults.headers.common[
-			'User-Agent'
-		] = `NintendoSDK Firmware/${this.FIRMWARE_VERSION} (platform:${this.PLATFORM}; did:${this.DEVICE_ID}; eid:${this.SERVER_ENV})`
-	}
+                if (line.includes("Latest version on CDN:")) {
+                    resolve({
+                        version: line.match(/\[(.*)]/)[1],
+                        versionString: line.split(" ")[4],
+                        buildNumber: line.split("=")[1].trim(),
+                    });
+                }
+            });
+        });
+    }
 
-	prettyVersion(intVersion) {
-		// Versions prior to 3.0.0 had hard coded version strings. (1.0.0 is 0.0.0-450, which is 0.0.0-revision 45, 2.0.0 is 0.0.1-revision 26)
-		const major = (intVersion >> 26) & 0x3f
-		const minor = (intVersion >> 20) & 0x3f
-		const patch = (intVersion >> 16) & 0xf
-		const revision = (intVersion & 0xffff) / 10
+    fetchLatestChangelog() {
+        return new Promise<{ versionString: string, changelog: string }>(async (resolve, reject) => {
+            try {
+                const res = await axios.get(
+                    "https://en-americas-support.nintendo.com/app/answers/detail/a_id/22525/kw/nintendo%20switch%20system%20update",
+                );
 
-		return {
-			pretty: `${major}.${minor}.${patch}`,
-			major,
-			minor,
-			patch,
-			revision,
-		}
-	}
+                const $ = cheerio.load(res.data);
+                const div = $(".update-versions");
 
-	async getLatestUpdate() {
-		try {
-			const response = await this.session.get(`${this.SUN_URL}/system_update_meta?device_id=${this.DEVICE_ID}`)
-			return response.data.system_update_metas[0]
-		} catch (e) {
-			console.error(e, '--------ERROR--------')
-		}
-	}
+                const version = $("h3", div).text().match(/\d+\.\d+.\d+/)[0];
 
-	async streamFile(url, path) {
-		console.log(url)
-		const response = await this.session.get(url, {
-			responseType: 'stream',
-		})
+                const changes = $(div).children(":not(h3)");
+                let changelog = "";
+                changes.each((i, elem) => {
+                    const parsed = turndownService.turndown($(elem).html()) + "\n";
+                    changelog += parsed;
+                });
 
-		await response.data.pipe(createWriteStream(path))
-		const contentID = response.headers['x-nintendo-content-id']
+                resolve({
+                    versionString: version,
+                    changelog: changelog.replace(/\n\s{4}/gm, "\n\u2800   "),
+                });
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
 
-		return contentID
-	}
+    downloadLatest(downloadDir) {
+        const tmpDir = tmp.dirSync({unsafeCleanup: true});
+        const tmpDirDownload = tmpDir.name;
+        let error = true;
 
-	async streamFromCDN(titleID: string, intVersion: number, path: string, magic: string = 'c') {
-		return this.streamFile(`${this.CDN_URL}/t/${magic}/${titleID}/${intVersion}?device_id=${this.DEVICE_ID}`, path)
-	}
+        return new Promise<{ filePath: string, fileName: string, md5: string }>((resolve, reject) => {
+            const ls = spawn(this.yuiPath, [...this.yuiBaseArgs, "--latest", "--out", tmpDirDownload]);
 
-	async downloadLatest(version, saveDir: string) {
-		const tmpobj = tmp.dirSync()
-		const tmpDir = 'C:/Users/ihave/AppData/Local/Temp/tmp-19624-wDD7FpYM6nCt'
-		// const tmpDir = tmpobj.name
+            ls.stderr.on("data", (data) => {
+                SysUpdateHandler._killProcess(ls);
+                error = true;
+                reject(data.toString());
+            });
 
-		const contentID = await this.streamFromCDN(version.title_id, version.title_version, `${tmpDir}/meta.nca`, 's')
-		renameSync(`${tmpDir}/meta.nca`, `${tmpDir}/${contentID}.nca`)
+            ls.stdout.on("data", (data) => {
+                const line = data.toString().trim();
+                console.log("[yui]", line);
 
-		setTimeout(() => {
-			const stdout = execFileSync(hactoolPath, [
-				'-k',
-				prodKeysPath,
-				`${tmpDir}/${contentID}.nca`,
-				`--section0dir=${tmpDir}/meta_nca_exefs`,
-				'--disablekeywarns',
-			])
-			console.log(stdout)
-		}, 5000)
+                if (line.includes("All done")) {
+                    error = false;
+                }
+            });
 
-		// tmpobj.removeCallback()
-	}
+            ls.stdout.on("close", () => {
+                if (!error) {
+                    const outFile = downloadDir + ".zip";
+
+                    const zip = new AdmZip();
+                    zip.addLocalFolder(tmpDirDownload);
+                    zip.writeZip(outFile);
+
+                    resolve({filePath: outFile, fileName: path.basename(outFile), md5: md5File.sync(outFile)});
+                    console.log("Wrote update file to", outFile);
+                    tmpDir.removeCallback();
+                }
+            });
+
+        });
+    }
 }
