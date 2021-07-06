@@ -13,8 +13,6 @@ import Discord from "discord.js";
 import {
     changelogEmbed,
     failedDownloadUpdateEmbed,
-    pendingChangelogEmbed,
-    pendingUpdateEmbed,
     updateEmbed,
     updateRemovedEmbed,
 } from "./webhookMessages";
@@ -32,30 +30,6 @@ const sendEmbeds = (embeds) => {
 
         resolve();
     });
-};
-
-const updateEmbeds = (embeds) => {
-    return new Promise(async (resolve) => {
-        for (const hook of hooks) {
-            for (const embed of embeds) {
-                await hook.send(embed);
-            }
-        }
-
-        resolve();
-    });
-};
-
-const pendingEmbed: [{ updateEmbed, changelogEmbed }] | [] = [];
-const completePending = (versionString, updateEmbedObj, changelogEmbedObj) => {
-    if (!updateEmbedObj) updateEmbedObj = pendingUpdateEmbed({versionString});
-    if (!changelogEmbedObj) changelogEmbedObj = pendingChangelogEmbed({versionString});
-
-    if (pendingEmbed.length !== 0) {
-        updateEmbeds([updateEmbedObj, changelogEmbedObj]).then();
-    } else {
-        sendEmbeds([updateEmbedObj, changelogEmbedObj]).then();
-    }
 };
 
 const scheduler = new SysUpdateScheduler({yuiPath, keysetPath, checkFrequency});
