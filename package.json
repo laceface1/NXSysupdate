@@ -17,7 +17,7 @@
     "cheerio": "^1.0.0-rc.10",
     "cookiejar": "^2.1.2",
     "discord.js": "^12.5.3",
-    "edit-json-file": "^1.4.0",
+    "edit-json-file": "^1.7.0",
     "md5-file": "^5.0.0",
     "path": "^0.12.7",
     "tmp": "^0.2.1",
