@@ -2,6 +2,7 @@
 
 version: 2
 enable-beta-ecosystems: true
+updates:
   - package-ecosystem: "npm"
     # Look for `package.json` and `lock` files in the `root` directory
     directory: "/"
@@ -11,10 +12,10 @@ enable-beta-ecosystems: true
     # Disable version updates for npm dependencies
     open-pull-requests-limit: 0
 
-  - package-ecosystem: "gomod"
-    # Raise pull requests to update vendored dependencies that are checked in to the repository
-    vendor: true
-    directory: "vendor/modules.txt"
+
+  - package-ecosystem: "composer"
+    # Files stored in app directory
+    directory: "/app"
     schedule:
       interval: "weekly"
     # Allow up to 10 open pull requests for gomod dependencies
