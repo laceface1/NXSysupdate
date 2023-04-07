@@ -6,7 +6,7 @@ updates:
   - package-ecosystem: "composer"
     # Files stored in app directory
     directory: "/app/composer.json"
-    schedule:
+schedule:
       interval: "weekly"
       # Disable version updates for Composer dependencies
       open-pull-requests-limit: 0
