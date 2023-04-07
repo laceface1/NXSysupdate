@@ -13,8 +13,8 @@ updates:
     open-pull-requests-limit: 0
 
   # Enable version updates for gomod
-  - package-ecosystem: "go.mod"
-    directory: "/go.mod"
+  - package-ecosystem: "gomod"
+    directory: "/go.mod/go.mod"
     # Check for updates once a week
     schedule:
       interval: "weekly"
