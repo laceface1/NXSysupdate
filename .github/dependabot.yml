@@ -1,18 +1,14 @@
-# Specify the number of open pull requests allowed
-
 version: 2
-enable-beta-ecosystems: true
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    # Disable version updates for npm dependencies
-    open-pull-requests-limit: 10
 
-  - package-ecosystem: "github-master"
-    # Workflow files stored in the
-    # default location of `.github/dependabot.yml`
+  - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
+      # Check for updates to GitHub Actions every weekday
+      interval: "daily"
+
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      # Check for updates managed by pip once a week
       interval: "weekly"
