@@ -12,11 +12,11 @@ updates:
     # Disable version updates for npm dependencies
     open-pull-requests-limit: 0
 
-  # Enable version updates for go.mod
-  - package-ecosystem: "go.mod"
+  # Enable version updates for gomod
+  - package-ecosystem: "gomod"
     directory: "/go.mod"
     # Check for updates once a week
     schedule:
       interval: "weekly"
-    # Allow up to 10 open pull requests for go.mod dependencies
+    # Allow up to 10 open pull requests for gomod dependencies
     open-pull-requests-limit: 10
