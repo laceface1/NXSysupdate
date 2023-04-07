@@ -12,11 +12,11 @@ updates:
     # Disable version updates for npm dependencies
     open-pull-requests-limit: 0
 
-  - package-ecosystem: "go.mod"
+  - package-ecosystem: "gomod"
     # Raise pull requests to update vendored dependencies that are checked in to the repository
     vendor: true
     directory: "vendor/modules.txt"
     schedule:
       interval: "weekly"
-    # Allow up to 10 open pull requests for go.mod dependencies
+    # Allow up to 10 open pull requests for gomod dependencies
     open-pull-requests-limit: 10
