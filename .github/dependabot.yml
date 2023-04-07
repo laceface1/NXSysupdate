@@ -1,22 +1,21 @@
 # Specify the number of open pull requests allowed
 
 version: 2
-enable-beta-ecosystems: true
+enable-beta-ecosystems: true 
 updates:
-  - package-ecosystem: "npm"
-    # Look for `package.json` and `lock` files in the `root` directory
-    directory: "/"
-    # Check the npm registry for updates every day (weekdays)
-    schedule:
-      interval: "daily"
-    # Disable version updates for npm dependencies
-    open-pull-requests-limit: 0
-
-
   - package-ecosystem: "composer"
     # Files stored in app directory
     directory: "/app/composer.json"
     schedule:
       interval: "weekly"
-    # Allow up to 10 open pull requests for gomod dependencies
-    open-pull-requests-limit: 10
+      # Disable version updates for Composer dependencies
+      open-pull-requests-limit: 0
+
+  - package-ecosystem: "npm"
+    # Look for `package.json` and `lock` files in the `root` directory
+    directory: "/"
+      # Check the npm registry for updates every day (weekdays)
+    schedule:
+      interval: "daily"
+      # Allow up to 10 open pull requests for npm dependencies
+      open-pull-requests-limit: 10
