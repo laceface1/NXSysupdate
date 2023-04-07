@@ -12,11 +12,11 @@ updates:
     # Disable version updates for npm dependencies
     open-pull-requests-limit: 0
 
-  - package-ecosystem: "bundler"
+  - package-ecosystem: "go.mod"
     # Raise pull requests to update vendored dependencies that are checked in to the repository
     vendor: true
-    directory: "/Gemfile"
+    directory: "vendor/modules.txt"
     schedule:
       interval: "weekly"
-    # Allow up to 10 open pull requests for bundler dependencies
+    # Allow up to 10 open pull requests for go.mod dependencies
     open-pull-requests-limit: 10
