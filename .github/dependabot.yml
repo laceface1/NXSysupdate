@@ -15,7 +15,7 @@ updates:
   - package-ecosystem: "bundler"
     # Raise pull requests to update vendored dependencies that are checked in to the repository
     vendor: true
-    directory: "/vendor/cache/Gemfile"
+    directory: "/Gemfile"
     schedule:
       interval: "weekly"
     # Allow up to 10 open pull requests for bundler dependencies
